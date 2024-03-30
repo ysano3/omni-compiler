@@ -38,7 +38,7 @@ public class AccParallel extends AccData {
       String varName = id.getName();
       if(ACC.debug_flag) System.out.println("AccParallel OuterIdList id="+id);
       if(_info.isDeclared(varName)) continue; //if declared in same directive
-      
+
       ACCvar parentVar = findParentVar(id);
       ACCvar var = _info.findACCvar(varName);
 
@@ -55,11 +55,12 @@ public class AccParallel extends AccData {
         if(ACC.debug_flag) System.out.println("AccParallel OuterIdList  default_attr="+default_var_attr+" id="+id);
         if(default_var_attr == ACCpragma.DEFAULT_NONE)
           throw new ACCexception("Variable attribute '"+varName+"' must be specified due to default(none)");
-        else 
-          _info.addVar(default_var_attr, Xcons.Symbol(Xcode.VAR, varName)); 
+        else
+          _info.addVar(default_var_attr, Xcons.Symbol(Xcode.VAR, varName));
+          // System.out.println("analyze() [_info.addVar(" + default_var_attr.toString() + ", " + Xcons.Symbol(Xcode.VAR, varName).toString() + ")]");
       }
     }
-    
+
     if(ACC.debug_flag) System.out.println("AccParallel _accKernel.analyze ... end");
 
     //this is the end of analyze
@@ -118,7 +119,7 @@ public class AccParallel extends AccData {
     }
 
     if(ACC.debug_flag) System.out.println("AccParallel rewrite _info="+_info);
-    
+
     //build
     BlockList beginBody = Bcons.emptyBody();
     for(Block b : initBlockList) beginBody.add(b);
@@ -162,6 +163,7 @@ public class AccParallel extends AccData {
     case VECT_LEN:
     case PRIVATE:
     case FIRSTPRIVATE:
+    case NUM_KERNELS: //additional
       return true;
     default:
       return clauseKind.isDataClause() || clauseKind.isReduction();

@@ -150,12 +150,14 @@ public class AccInformation {
     public VarListClause(ACCpragma clauseKind, XobjList args) throws ACCexception{
       super(clauseKind);
       if(ACC.debug_flag) System.out.println("AccInformation.VarListClause="+clauseKind+", args="+args);
+      // System.out.println("VarListClause() [init("+ args +")]");
       init(args);
     }
 
     public VarListClause(ACCpragma clauseKind, Xobject args) throws ACCexception{
       super(clauseKind);
       if(ACC.debug_flag) System.out.println("AccInformation.VarListClause="+clauseKind+", args="+args);
+      // System.out.println("VarListClause() [init((XobjList)"+ args +")]");
       init((XobjList)args);
     }
 
@@ -176,6 +178,7 @@ public class AccInformation {
         checkDuplication(var);
       }
       varList.add(var);
+      // System.out.println("addVar() [varList.add(new ACCvar(" + arg.toString() + ", " + _clauseKind.toString() + "))]");
       if(ACC.debug_flag) System.out.println("AccInformation. addVar var="+var);
     }
 
@@ -242,6 +245,7 @@ public class AccInformation {
 
   public void addClause(Clause clause){
     _clauseList.add(clause);
+    // System.out.println("addClause() [_clauselist.add(" + clause.toString() + ")]");
   }
 
   //
@@ -254,10 +258,15 @@ public class AccInformation {
     if(pragma == ACCpragma.NONE) return; // for OMPtoACC
 
     if(ACC.debug_flag) System.out.println("AccInformation: pragma="+pragma+" args="+arg);
-    
+    // System.out.println("AccInformation(" + pragma + " , " + arg + ")");
+
     switch(pragma){
     case WAIT:
     case CACHE:
+    //additional directive
+    case BCAST:
+    case REFLECT:
+    case ALLGATHER:
     // case SYNC:
     // case FLUSH:
     // case YIELD:
@@ -274,7 +283,7 @@ public class AccInformation {
       if(clauseKind == ACCpragma.WAIT_CLAUSE){
         for(XobjArgs a = clauseArg.getArgs(); a != null; a = a.nextArgs())
           addClause(makeClause(clauseKind, a.getArg()));
-      } else 
+      } else
         addClause(makeClause(clauseKind, clauseArg));
     }
   }
@@ -293,12 +302,15 @@ public class AccInformation {
     case VECT_LEN:
     case COLLAPSE:
     case WAIT_CLAUSE:
+    case NUM_KERNELS: // additional
+    case MULKER_LENGTH: // additional
       return new IntExprClause(clauseKind, arg);
     case GANG:
     case WORKER:
     case VECTOR:
     case WAIT: //it will be int expr list
     case ASYNC: //it will be int expr list
+    case UNROLL: // additional
       if(arg == null){
         return new Clause(clauseKind);
       }else {
@@ -316,10 +328,11 @@ public class AccInformation {
           else {
             throw new ACCexception("bad default clause");
           }
-        }            
+        }
         return new VarListClause(clauseKind,Xcons.List());
       }
     default:
+      // System.out.println("makeClause() [new VarListClause(" + clauseKind + ", " + arg + ")]");
       return new VarListClause(clauseKind, (XobjList)arg);
     }
   }
@@ -342,6 +355,7 @@ public class AccInformation {
       addClause(clause);
     }
     clause.addVar(varXobj);
+    // System.out.println("addVar() [" + clause.toString() + " <- " +varXobj.toString() + "]");
   }
 
   void addClause(ACCpragma clauseKind) throws ACCexception{
@@ -353,7 +367,7 @@ public class AccInformation {
     StringBuilder sb = new StringBuilder();
     sb.append("#_pragma acc");
 
-    if(_pragma != ACCpragma.CACHE && _pragma != ACCpragma.WAIT) {
+    if(_pragma != ACCpragma.CACHE && _pragma != ACCpragma.WAIT && _pragma != ACCpragma.BCAST && _pragma != ACCpragma.REFLECT && _pragma != ACCpragma.ALLGATHER) {
       sb.append(' ');
       sb.append(_pragma.getName());
     }
@@ -381,7 +395,7 @@ public class AccInformation {
   }
 
   Xobject toXobject(){
-    if(_pragma == ACCpragma.CACHE || _pragma == ACCpragma.WAIT){
+    if(_pragma == ACCpragma.CACHE || _pragma == ACCpragma.WAIT || _pragma == ACCpragma.BCAST || _pragma == ACCpragma.REFLECT || _pragma == ACCpragma.ALLGATHER){
       Clause c = findClause(_pragma);
       return c.toXobject();
     }

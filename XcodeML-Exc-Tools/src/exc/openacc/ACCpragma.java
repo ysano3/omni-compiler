@@ -22,6 +22,13 @@ public enum ACCpragma {
   ATOMIC,
   ROUTINE,
 
+  // additional directive
+  BRAM,
+  BCAST,
+  REFLECT,
+  ALLGATHER,
+  ALLREDUCE,
+
   //general
   IF,
   ASYNC,
@@ -42,10 +49,13 @@ public enum ACCpragma {
   REDUCTION_BITXOR,
   REDUCTION_LOGAND,
   REDUCTION_LOGOR,
-  
+
+  // additional accelerator clause
+  NUM_KERNELS,
+
   //host_data clause
   USE_DEVICE,
-  
+
   //data clause
   DEVICEPTR,
   COPY,
@@ -59,7 +69,7 @@ public enum ACCpragma {
   PRESENT_OR_COPYIN,
   PRESENT_OR_COPYOUT,
   PRESENT_OR_CREATE,
-  
+
   //loop clause
   COLLAPSE,
   GANG,
@@ -68,10 +78,14 @@ public enum ACCpragma {
   AUTO,
   SEQ,
   INDEPENDENT,
-  
+
+  //additional loop clause
+  UNROLL, // Loop Unrolling
+  MULKER_LENGTH, // Multi Kernel
+
   //declare clause
   DEVICE_RESIDENT,
-  
+
   //update clause
   HOST,
   DEVICE,
@@ -89,6 +103,13 @@ public enum ACCpragma {
   BIND,
   NOHOST,
 
+  // bram clause
+  ALIGN,
+  DIVIDE,
+  SHADOW,
+  INDEX,
+  PLACE,
+
   //argument of directive (ex. wait, cache, routine)
   ROUTINE_ARG,
 
@@ -104,11 +125,11 @@ public enum ACCpragma {
   OMP_DIST_SCHEDULE,
   OMP_LASTPRIVATE,
   OMP_THREAD_LIMIT,
-  
+
   ;
-  
+
   private String name = null;
-  
+
   public String getName() {
     if (name == null) name = toString().toLowerCase();
     return name;
@@ -117,13 +138,13 @@ public enum ACCpragma {
   public static ACCpragma valueOf(Xobject x) {
     return valueOf(x.getString());
   }
-  
+
   private static boolean isDataClause(ACCpragma clause){
     switch(clause){
-    case COPY:  
-    case COPYIN:  
+    case COPY:
+    case COPYIN:
     case COPYOUT:
-    case CREATE: 
+    case CREATE:
     case DELETE:
     case PRESENT:
     case PRESENT_OR_COPY:
@@ -138,11 +159,11 @@ public enum ACCpragma {
       return false;
     }
   }
-  
+
   public boolean isDataClause(){
     return isDataClause(this);
   }
-  
+
   public boolean isDirective(){
     switch(this){
     case PARALLEL:
@@ -155,6 +176,12 @@ public enum ACCpragma {
     case DECLARE:
     case WAIT:
     case ROUTINE:
+    // additional
+    case BRAM:
+    case BCAST:
+    case REFLECT:
+    case ALLGATHER:
+    case ALLREDUCE:
       // case SYNC:
       // case FLUSH:
       // case YIELD:
@@ -163,7 +190,7 @@ public enum ACCpragma {
       return false;
     }
   }
-  
+
   public boolean isReduction(){
     switch(this){
     case REDUCTION_PLUS:
@@ -180,7 +207,7 @@ public enum ACCpragma {
       return false;
     }
   }
-  
+
   public boolean isLoop(){
     switch(this){
     case LOOP:
@@ -191,7 +218,7 @@ public enum ACCpragma {
       return false;
     }
   }
-  
+
   public boolean isCompute(){
     switch(this){
     case PARALLEL:
@@ -224,6 +251,12 @@ public enum ACCpragma {
     case ENTER_DATA:
     case EXIT_DATA:
     case ATOMIC:
+    // additional
+    case BRAM:
+    case BCAST:
+    case REFLECT:
+    case ALLGATHER:
+    case ALLREDUCE:
       // case SYNC:
       // case FLUSH:
       // case YIELD:

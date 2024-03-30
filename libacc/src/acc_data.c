@@ -30,7 +30,7 @@ static _ACC_memory_t* init_memory(int mode, void **device_addr, void *addr, size
     }
     num_top_array_dims++;
   }
-  
+
   const bool is_pointer_element = (num_top_array_dims != dim);
 
   //  printf("lead array dims = %d\n", num_leading_array_dims);
@@ -71,7 +71,7 @@ static _ACC_memory_t* init_memory(int mode, void **device_addr, void *addr, size
   }
 
   // alloc & init host descriptor
-  void *host_addr = (mode == INIT_DEVPTR)? NULL : addr; //host_data_d->host_addr 
+  void *host_addr = (mode == INIT_DEVPTR)? NULL : addr; //host_data_d->host_addr
 
   if(memory == NULL){
     memory = _ACC_memory_alloc((char*)host_addr + offset, size, (mode == INIT_DEVPTR)? addr: NULL);
@@ -93,7 +93,7 @@ static _ACC_memory_t* init_memory(int mode, void **device_addr, void *addr, size
 					  &length[num_top_array_dims],
 					  pointer_dim_bit >> num_top_array_dims,
 					  &array_info[num_top_array_dims]);
-					  
+
 	device_pointers[i] = sub_device_addr;
 	memory_offsets[i] = _ACC_memory_get_host_offset(pointer_memories[i], *element_addr);
       }
@@ -255,7 +255,7 @@ void _ACC_copy_subdata(_ACC_data_t *desc, int direction, int asyncId, unsigned l
       break;
     }
   }
-  
+
   if(!isblockstride){
     unsigned long long distances[8];
     unsigned long long offsets[8];
@@ -303,7 +303,7 @@ void _ACC_gpu_unmap_data(void *host_addr)
     return;
   }
 
-  
+
   void *addr = _ACC_memory_get_host_addr(data);
   size_t size = _ACC_memory_get_size(data);
   if(_ACC_memory_table_remove(addr, size) == NULL){

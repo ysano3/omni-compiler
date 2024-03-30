@@ -93,7 +93,22 @@ class AccInfoReader extends AccProcessor{
     case CACHE:
       pb.setProp(AccDirective.prop, new AccCache(_globalDecl, info, pb));
       break;
-      
+    // additional
+    case BRAM:
+      pb.setProp(AccDirective.prop, new AccBram(_globalDecl, info, pb));
+      break;
+    case BCAST:
+      pb.setProp(AccDirective.prop, new AccBcast(_globalDecl, info, pb));
+      break;
+    case REFLECT:
+      pb.setProp(AccDirective.prop, new AccReflect(_globalDecl, info, pb));
+      break;
+    case ALLGATHER:
+      pb.setProp(AccDirective.prop, new AccAllgather(_globalDecl, info, pb));
+      break;
+    case ALLREDUCE:
+      pb.setProp(AccDirective.prop, new AccAllreduce(_globalDecl, info, pb));
+      break;
     // case SYNC:
     //   pb.setProp(AccDirective.prop, new AccSync(_globalDecl, info, pb));
     //   break;

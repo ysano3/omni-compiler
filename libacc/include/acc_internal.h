@@ -38,9 +38,11 @@ typedef long acc_device_t;
 #endif
 
 extern int _ACC_num_gangs_limit;
+extern bool _ACC_get_timestamp;
+extern int _ACC_profiling_loop;
 
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
 
   //acc_runtime.c
@@ -106,6 +108,8 @@ extern "C" {
   _ACC_memory_t** _ACC_memory_get_pointees(_ACC_memory_t* memory);
   unsigned int _ACC_memory_get_num_pointees(_ACC_memory_t* memory);
 
+  void _ACC_get_inittime(double *stamp);
+  void _ACC_get_fintime(double *stamp);
 
   //acc_memory_table.c
   void _ACC_gpu_init_data_table();
@@ -134,6 +138,7 @@ extern "C" {
   void _ACC_gpu_get_block_count(unsigned **count);
   void _ACC_gpu_get_block_count_async(unsigned **count, int async_num);
   _ACC_queue_t* _ACC_queue_map_get_queue(int async_num);
+  _ACC_queue_t *_ACC_queue_map_get_queue_multi(int async_num, int kernel_num);
   void _ACC_queue_map_set_queue(int async_num, _ACC_queue_t* queue);
 
   //acc_platform?

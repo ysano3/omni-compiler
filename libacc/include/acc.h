@@ -2,6 +2,7 @@
 #define ACC_ASYNC_NOVAL (-2)
 
 #include <stddef.h>
+#include "tlog.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,7 +11,7 @@ extern "C" {
   void _ACC_init(int argc, char** argv);
   void _ACC_finalize(void);
 
-  void _ACC_init_data		(void **host_data_desc, void **device_addr, void *addr, size_t type_size, int dim, int pointer_dim_bit, unsigned long long lower[], unsigned long long length[]);  
+  void _ACC_init_data		(void **host_data_desc, void **device_addr, void *addr, size_t type_size, int dim, int pointer_dim_bit, unsigned long long lower[], unsigned long long length[]);
   void _ACC_pinit_data		(void **host_data_desc, void **device_addr, void *addr, size_t type_size, int dim, int pointer_dim_bit, unsigned long long lower[], unsigned long long length[]);
   void _ACC_find_data		(void **host_data_desc, void **device_addr, void *addr, size_t type_size, int dim, int pointer_dim_bit, unsigned long long lower[], unsigned long long length[]);
   void _ACC_devptr_init_data	(void **host_data_desc, void **device_addr, void *addr, size_t type_size, int dim, int pointer_dim_bit, unsigned long long lower[], unsigned long long length[]);
@@ -30,6 +31,7 @@ extern "C" {
   void _ACC_program_init(void **desc, char * kernel_src_filename, int num_kernels, char ** kernel_names);
   void _ACC_program_init_mem(void **desc, char *kernel_bin_start, char *kernel_bin_end, int num_kernels, char ** kernel_names);
   void _ACC_launch(void *program, int kernel_num, int *_ACC_conf, int async_num, int num_args, unsigned long long/*instead of size_t*/ *arg_sizes, void **args);
+  void _ACC_launch_multi(void *program, int kernel_num_head, int *_ACC_conf, int async_num, int num_args, unsigned long long *arg_sizes, void **args, int num_kernels);
   void _ACC_program_finalize(void *program);
 
   int _ACC_adjust_num_gangs(long long num_gangs, int limit);

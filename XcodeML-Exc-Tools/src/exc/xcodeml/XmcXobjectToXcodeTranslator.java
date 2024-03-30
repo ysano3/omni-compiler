@@ -69,7 +69,7 @@ public class XmcXobjectToXcodeTranslator extends XmXobjectToXcodeTranslator {
 
         // type
         if (ident.Type() != null) {
-            addAttributes(e, 
+            addAttributes(e,
                           "type", ident.Type().getXcodeCId());
         }
 
@@ -698,7 +698,7 @@ public class XmcXobjectToXcodeTranslator extends XmXobjectToXcodeTranslator {
             default:
                 fatal("cannot apply ADDR_OF to " + operand.toString());
             }
-            
+
             if (isArrayRef){
               e = addChildNodes(createElement("addrOfExpr"), transOrError(xobj.getArg(0)));
             }else if (nSymAddr != null) {
@@ -786,9 +786,9 @@ public class XmcXobjectToXcodeTranslator extends XmXobjectToXcodeTranslator {
             e = addChildNodes(createElement(name),
                               transOrError(xobj.getArg(0)));
             break;
-        
+
         // binary expression
-        
+
         case ASSIGN_EXPR:
         case PLUS_EXPR:
         case ASG_PLUS_EXPR:
@@ -1238,7 +1238,7 @@ public class XmcXobjectToXcodeTranslator extends XmXobjectToXcodeTranslator {
         }
         return declList;
     }
-    
+
     private Node transACCPragmaVarOrArray(Xobject x){
 	if(x == null) return null;
 

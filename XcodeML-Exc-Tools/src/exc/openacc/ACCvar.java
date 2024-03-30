@@ -9,24 +9,41 @@ public class ACCvar {
   private Ident id;
 
   private final EnumSet<Attribute> atrEnumSet = EnumSet.noneOf(Attribute.class);
-  
+
   //for data clause
   private ACCpragma dataClause = null;
   private Ident deviceptr = null;
   private Ident hostDesc = null;
-  
+
   //for reduction clause
   private ACCpragma reductionOp = null;
-  
+
   //array dimension
   private int dim; // 0 means scalar
   private Xtype elementType;
-  
+
   //for subarray
   private XobjList rangeList = Xcons.List();
   private boolean isSubarray = false;
   private XobjList _subscripts;
   private int pointerDimBit;
+
+  // for bram
+  private int totalLength = 0;
+  private int partLength = 0;
+  private int remainLength = 0;
+  private int partOffset = 0;
+  private int localLength = 0;
+  // for bram shadow
+  private Xobject frontOffsetXobject;
+  private Xobject backOffsetXobject;
+  private int frontOffset = 0;
+  private int backOffset = 0;
+  // for bram index
+  private Xobject indexOffsetXobject;
+  private Xobject indexLengthXobject;
+  private int indexOffset = 0;
+  private int indexLength = 0;
 
   //parent
   private ACCvar _parent;
@@ -44,15 +61,23 @@ public class ACCvar {
     isUseDevice,
     isReduction,
     isDeviceptr,
+
+    // additional
+    isBram,
+    isAlign,
+    isDivide,
+    isShadow,
+    isIndex,
+    isPlace,
   }
-  
+
   ACCvar(Ident id, ACCpragma atr, ACCvar parent) throws ACCexception{
     this(id, null, atr, parent);
   }
 
   ACCvar(Ident id, XobjList subscripts, ACCpragma atr, ACCvar parent) throws ACCexception{
     this.id = id;
-    
+
     if(atr != ACCpragma.USE_DEVICE){
       if(subscripts != null && !subscripts.isEmpty()){
         rangeList = makeRange(subscripts);
@@ -61,7 +86,7 @@ public class ACCvar {
         rangeList = makeRange(id.Type());
       }
     }
-    
+
     dim = rangeList.Nargs();
 
     //System.out.println("var : " + getName());
@@ -98,19 +123,29 @@ public class ACCvar {
     }
     //this.subscripts = subscripts;
 
-    if(subscripts != null && !subscripts.isEmpty()){
+    // System.out.println("ACCvar() [_subscripts = " + _subscripts + "]");
+    if(atr == ACCpragma.SHADOW) {
+      frontOffsetXobject = subscripts.getArg(0).left();
+      backOffsetXobject = subscripts.getArg(0).right();
+      // System.out.println("ACCvar() [frontOffset = " + frontOffsetXobject + ", backOffset = " + backOffsetXobject + "]");
+    } else if(atr == ACCpragma.INDEX) {
+      indexOffsetXobject = subscripts.getArg(0).left();
+      indexLengthXobject = subscripts.getArg(0).right();
+      // System.out.println("ACCvar() [indexOffset = " + indexOffsetXobject + ", indexLength = " + indexLengthXobject + "]");
+    } else if(subscripts != null && !subscripts.isEmpty()){
       _subscripts = subscripts;
       //rangeList = subscripts; //makeRange(subscripts);
       isSubarray = true;
-    }else{
+    } else {
       _subscripts = null;
       //rangeList = null;//= makeRange(id.Type());
     }
+    // System.out.println("ACCvar() [_subscripts = " + _subscripts + "]");
     dim = 0; //rangeList.Nargs();
     setAttribute(atr);
     id = null;
   }
-  
+
   private void setAttribute(ACCpragma atr) throws ACCexception{
     boolean isSpecifiedDataAttribute = false;
     if(atr.isDataClause() && isSpecifiedDataAttribute){
@@ -122,6 +157,7 @@ public class ACCvar {
       reductionOp = atr;
       return;
     }
+    // System.out.println("setAttribute() [atr = " + atr + "]");
 
     switch(atr){
     case COPY:
@@ -188,17 +224,47 @@ public class ACCvar {
       atrEnumSet.add(Attribute.isUseDevice);
       atrEnumSet.add(Attribute.isPresent);
       break;
+    // additional
+    case ALIGN:
+      atrEnumSet.add(Attribute.isBram);
+      atrEnumSet.add(Attribute.isAlign);
+      break;
+    case DIVIDE:
+      atrEnumSet.add(Attribute.isBram);
+      atrEnumSet.add(Attribute.isDivide);
+      break;
+    case SHADOW:
+      atrEnumSet.add(Attribute.isBram);
+      atrEnumSet.add(Attribute.isShadow);
+      break;
+    case INDEX:
+      atrEnumSet.add(Attribute.isBram);
+      atrEnumSet.add(Attribute.isIndex);
+      break;
+    case PLACE:
+      atrEnumSet.add(Attribute.isBram);
+      atrEnumSet.add(Attribute.isPlace);
+      break;
+    case BCAST:
+    case REFLECT:
+    case ALLGATHER:
+      break;
     default:
       // System.out.println("id="+id);
       throw new ACCexception("var:"+id.getName()+", attribute:" + atr +" is not valid");
     }
+
+    for(Attribute a : atrEnumSet) {
+      // System.out.println("setAttribute() [a = " + a + "]");
+    }
+
     dataClause = atr;
   }
 
   public boolean is(ACCpragma clause){
     return (clause == dataClause) || (clause == reductionOp);
   }
-  
+
   public String getName(){
     return symbol;//id.getName();
   }
@@ -218,7 +284,7 @@ public class ACCvar {
     }
     return new String(sb);
   }
-  
+
   public boolean isPresent(){
     return atrEnumSet.contains(Attribute.isPresent);
   }
@@ -239,7 +305,7 @@ public class ACCvar {
   }
   public boolean isFirstprivate(){
     return atrEnumSet.contains(Attribute.isFirstprivate);
-  } 
+  }
   public boolean isReduction(){
     return atrEnumSet.contains(Attribute.isReduction);
   }
@@ -248,11 +314,35 @@ public class ACCvar {
   }
   public boolean isDeviceptr() { return atrEnumSet.contains(Attribute.isDeviceptr); }
 
+  public boolean isBram(){ // additional
+    return atrEnumSet.contains(Attribute.isBram);
+  }
+
+  public boolean isAlign(){ // additional
+    return atrEnumSet.contains(Attribute.isAlign);
+  }
+
+  public boolean isDivide(){ // additional
+    return atrEnumSet.contains(Attribute.isDivide);
+  }
+
+  public boolean isShadow(){ // additional
+    return atrEnumSet.contains(Attribute.isShadow);
+  }
+
+  public boolean isIndex(){ //additional
+    return atrEnumSet.contains(Attribute.isIndex);
+  }
+
+  public boolean isPlace(){ //additional
+    return atrEnumSet.contains(Attribute.isPlace);
+  }
+
   public boolean is(Attribute attr)
   {
     return atrEnumSet.contains(attr);
   }
-  
+
   public Ident getId(){
     if(_parent != null){
       return _parent.getId();
@@ -290,6 +380,94 @@ public class ACCvar {
     return hostDesc;
   }
 
+  public Xobject getFrontOffsetXobject() { // additional
+    return frontOffsetXobject;
+  }
+
+  public Xobject getBackOffsetXobject() { // additional
+    return backOffsetXobject;
+  }
+
+  public Xobject getIndexOffsetXobject() { // additional
+    return indexOffsetXobject;
+  }
+
+  public Xobject getIndexLengthXobject() { // additional
+    return indexLengthXobject;
+  }
+
+  public void setFrontOffset(int offset) { // additional
+    frontOffset = offset;
+  }
+
+  public int getFrontOffset() { // additional
+    return frontOffset;
+  }
+
+  public void setBackOffset(int offset) { // additional
+    backOffset = offset;
+  }
+
+  public int getBackOffset() { // additional
+    return backOffset;
+  }
+
+  public void setIndexOffset(int offset) { // additional
+    indexOffset = offset;
+  }
+
+  public int getIndexOffset() { // additional
+    return indexOffset;
+  }
+
+  public void setIndexLength(int length) { // additional
+    indexLength = length;
+  }
+
+  public int getIndexLength() { // additional
+    return indexLength;
+  }
+
+  public void setTotalLength(int length) { // additional
+    totalLength = length;
+  }
+
+  public int getTotalLength() { // additional
+    return totalLength;
+  }
+
+  public void setPartLength(int length) { // additional
+    partLength = length;
+  }
+
+  public int getPartLength() { // additional
+    return partLength;
+  }
+
+  public void setRemainLength(int length) { // additional
+    remainLength = length;
+  }
+
+  public int getRemainLength() { // additional
+    return remainLength;
+  }
+
+  public void setLocalLength(int length) { // additional
+    localLength = length;
+  }
+
+  public int getLocalLength() { // additional
+    return localLength;
+  }
+
+  public void setPartOffset(int offset) { // additional
+    partOffset = offset;
+  }
+
+  public int getPartOffset() { // additional
+    return partOffset;
+  }
+
   public boolean isAllocated(){
     //return deviceptr != null;
     //return allocatesDeviceMemory();
@@ -305,7 +483,7 @@ public class ACCvar {
     return true;
     //FIXME implement!
   }
-  
+
   private void addRange(XobjList rangeList, Xobject range, ArrayType arrayType) throws ACCexception{
     Xobject lower, length;
     if(range.Opcode() != Xcode.LIST){ //scalar
@@ -316,7 +494,7 @@ public class ACCvar {
       length = range.getArgOrNull(1);
       if(length == null){
         if(arrayType != null){
-          length = Xcons.binaryOp(Xcode.MINUS_EXPR, getArraySize(arrayType), lower);  
+          length = Xcons.binaryOp(Xcode.MINUS_EXPR, getArraySize(arrayType), lower);
         }else{
           throw new ACCexception("length is unspecified");
         }
@@ -327,7 +505,7 @@ public class ACCvar {
     }
     rangeList.add(Xcons.List(lower, length));
   }
-  
+
   private XobjList makeRange(XobjList subscript) throws ACCexception{
     XobjList rangeList = Xcons.List();
     Xtype type = id.Type();
@@ -348,7 +526,7 @@ public class ACCvar {
         pointerDimBit += 1 << i;
         break;
       default:
-        throw new ACCexception("too many subscripts");   
+        throw new ACCexception("too many subscripts");
       }
       if(args != null) args = args.nextArgs();
       i++;
@@ -359,14 +537,14 @@ public class ACCvar {
     this.elementType = type;
     return rangeList;
   }
-  
+
   private boolean isCorrectRange(ArrayType arrayType, Xobject lower, Xobject length){
     Xobject size = getArraySize(arrayType);
     if(size == null) return true;
     size = ACCutil.foldIntConstant_mod(size);
     if(! size.isIntConstant()) return true;
     int sizeInt = size.getInt();
-    
+
     Xobject lower2 = ACCutil.foldIntConstant_mod(lower);
     Xobject length2 = ACCutil.foldIntConstant_mod(length);
     int lowerInt = 0;
@@ -377,13 +555,13 @@ public class ACCvar {
     if(length2.isIntConstant()){
       lengthInt = length2.getInt();
     }
-    
+
     if(lowerInt < 0 || lengthInt < 1) return false;
     if(lowerInt + lengthInt > sizeInt) return false;
 
     return true;
   }
-  
+
   private XobjList makeRange(Xtype type) throws ACCexception{
     XobjList rangeList = Xcons.List();
     pointerDimBit = 0;
@@ -423,7 +601,7 @@ public class ACCvar {
       i++;
     }
   }
-  
+
   private Xobject getArraySize(ArrayType arrayType){
     long arraySize = arrayType.getArraySize();
     if (arraySize <= 0){
@@ -436,7 +614,7 @@ public class ACCvar {
       return Xcons.IntConstant((int)arraySize);
     }
   }
-  
+
   public Xobject getAddress() throws ACCexception{
     Xtype varType = id.Type();
 
@@ -477,9 +655,9 @@ public class ACCvar {
     }
     return size;
   }
-  
+
   /////////////////
-  
+
   public boolean conllidesWith(XobjList subscripts){
     int dim = Math.max(this.rangeList.Nargs(), subscripts.Nargs());
     for(int i=0;i<dim;i++){
@@ -528,15 +706,15 @@ public class ACCvar {
       return (low2+len2 > low1);
     }
   }
-  
+
   public XobjList getSubscripts(){
     return rangeList;
   }
-  
+
   public boolean isSubarray(){
     return isSubarray;
   }
-  
+
   public Xtype getElementType(){
     if(_parent != null){
       return _parent.getElementType();
@@ -574,6 +752,7 @@ public class ACCvar {
     this.id = id;
 
     //idからrangeListを作成、およびチェック?
+    // System.out.println("ACCvar() [_subscripts = " + _subscripts + "]");
     if(_subscripts != null && !_subscripts.isEmpty()){
       rangeList = makeRange(_subscripts);
       isSubarray = true;
@@ -604,5 +783,3 @@ public class ACCvar {
     return pointerDimBit;
   }
 }
-
-

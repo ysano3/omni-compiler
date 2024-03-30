@@ -31,8 +31,14 @@ _ACC_queue_t* _ACC_queue_create(int async_num)
   }
   queue->command_queue = _ACC_cl_command_queues[_ACC_cl_device_num];
 #else
-  queue->command_queue = clCreateCommandQueue(_ACC_cl_current_context, _ACC_cl_device_ids[_ACC_cl_device_num], 0 /*prop*/, &ret);
-  CL_CHECK(ret);
+  if(_ACC_get_timestamp) {
+    queue->command_queue = clCreateCommandQueue(_ACC_cl_current_context, _ACC_cl_device_ids[_ACC_cl_device_num], CL_QUEUE_PROFILING_ENABLE, &ret);
+    CL_CHECK(ret);
+  } else {
+    queue->command_queue = clCreateCommandQueue(_ACC_cl_current_context, _ACC_cl_device_ids[_ACC_cl_device_num], 0 /*prop*/, &ret);
+    CL_CHECK(ret);
+  }
+
 #endif
 
   queue->last_event = NULL;
@@ -68,7 +74,7 @@ int _ACC_queue_test(_ACC_queue_t *queue)
 			  sizeof(cl_int),
 			  &status,
 			  NULL));
-  
+
   if(status == CL_COMPLETE){
     return ~0;
   }else{

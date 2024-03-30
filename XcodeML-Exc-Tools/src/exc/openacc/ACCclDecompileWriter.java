@@ -6,6 +6,8 @@ import java.io.*;
 import java.util.*;
 
 class ACCclDecompileWriter extends ACCgpuDecompileWriter {
+  // channel list for FPGA
+  final static Set<Ident> channels = new HashSet<Ident>();
 
   public ACCclDecompileWriter(Writer out, XobjectFile env) {
     super(out,env);
@@ -13,14 +15,22 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
 
   public void addHeaders(List<String> includeLines){
     includeLines.add("/* #include \"acc_cl.h\" */");
+
+    if(!channels.isEmpty()) {
+      includeLines.add("#pragma OPENCL EXTENSION cl_intel_channels : enable");
+
+      for(Ident id : channels) {
+        includeLines.add("channel " + id.Type().getXcodeCId() + " " + id.getName() + ";");
+      }
+    }
   }
-  
+
   void printFunc(XobjectDef def){
     String funcName = def.getName();
     boolean isDeviceFunc = funcName.endsWith(AccKernel.ACC_GPU_DEVICE_FUNC_SUFFIX);
     printWithIdentList(def.getDef(), _env.getGlobalIdentList(), isDeviceFunc, (Ident)def.getNameObj());
   }
-  
+
   public void printDecl(XobjectDef def){
     Xobject v = def.getDef();
     if(v==null)return;
@@ -143,7 +153,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
       for(XobjArgs a = v.getArgs(); a != null; a = a.nextArgs())
         print(a.getArg());
       break;
-      // 
+      //
       // Statement
       //
     case COMPOUND_STATEMENT:
@@ -396,7 +406,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
       XobjList prop = (XobjList)v.getProp(ACCgpuDecompiler.GPU_FUNC_CONF);
       XobjList propAsync = (XobjList)v.getProp(ACCgpuDecompiler.GPU_FUNC_CONF_ASYNC);
       Xobject propShared = (Xobject)v.getProp(ACCgpuDecompiler.GPU_FUNC_CONF_SHAREDMEMORY);
-      
+
       String funcName = null;
       if(v.left().Opcode() == Xcode.FUNC_ADDR){
         funcName = v.left().getSym();
@@ -428,13 +438,13 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
       // FIXME implement stream???
       if (prop != null) {
         print("<<<_ACC_GPU_DIM3_block, _ACC_GPU_DIM3_thread, ");
-        
+
         if(propShared != null){
           print(propShared);
         }else{
           print("0");
         }
-        
+
         if(propAsync != null){
           if(! propAsync.isEmpty()){
             print("," + "_ACC_gpu_get_stream(");
@@ -442,7 +452,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
             print(")");
           }
         }
-        
+
         print(">>>");
       }
 
@@ -465,7 +475,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
       print(v.left());
       print(")--");
       break;
-      
+
     case PRE_INCR_EXPR:
       print("++(");
       print(v.left());
@@ -574,7 +584,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
     case COMPOUND_VALUE:
       print("(");
       printDeclType(v.Type(),null);
-      print("){");      
+      print("){");
       for(XobjArgs a = v.getArg(0).getArgs(); a != null; a = a.nextArgs()){
         print(a.getArg());
         if(a.nextArgs() != null){
@@ -583,11 +593,11 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
       }
       print("}");
       break;
-      
+
     case COMPOUND_VALUE_ADDR:
       print("&((");
       printDeclType(v.Type().getRef(),null);
-      print("){");      
+      print("){");
       for(XobjArgs a = v.getArg(0).getArgs(); a != null; a = a.nextArgs()){
         print(a.getArg());
         if(a.nextArgs() != null){
@@ -825,11 +835,11 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
           if (t.isVolatile()) {
             decltype += "volatile ";
           }
-          
+
           if(t.isRestrict()) {
             decltype += "__restrict__ ";
           }
-          
+
           decltype += makeDeclaratorRec(decls, name);
         } break;
     case Xtype.FUNCTION:
@@ -1032,7 +1042,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
     for (XobjArgs a = id_list.getArgs(); a != null; a = a.nextArgs()) {
       id = (Ident)a.getArg();
       if(id == null) continue;
-      
+
       if (id.getStorageClass() != StorageClass.TAGNAME) {
         continue;
       }
@@ -1163,7 +1173,7 @@ class ACCclDecompileWriter extends ACCgpuDecompileWriter {
     for (Xobject a : identList) {
       Ident id = (Ident)a;
       if(id == null) continue;
-      
+
       if (id.isDeclared() || !id.getStorageClass().isVarOrFunc()) {
         continue;
       }

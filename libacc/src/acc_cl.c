@@ -13,6 +13,9 @@ static bool is_working = false;
 
 static cl_platform_id _ACC_cl_platform_id = NULL;
 
+#define MAX_PLATFORMS 3
+#define MAX_PLATFORM_NAME 256
+
 void _ACC_platform_init()
 {
   if(is_working == true){
@@ -20,20 +23,44 @@ void _ACC_platform_init()
   }
 
   cl_uint ret_num_platforms;
-  cl_int ret;
+  cl_platform_id platforms[MAX_PLATFORMS];
 
-  CL_CHECK(clGetPlatformIDs(1, &_ACC_cl_platform_id, &ret_num_platforms));
+  CL_CHECK(clGetPlatformIDs(MAX_PLATFORMS, platforms, &ret_num_platforms));
 
   if(ret_num_platforms == 0){
     _ACC_fatal("no available cl_platform");
   }
 
+#ifdef __USE_FPGA__
+  int n = (ret_num_platforms > MAX_PLATFORMS) ? MAX_PLATFORMS : ret_num_platforms;
+  // choose platform
+#ifdef __USE_EMULATOR__
+  char *pname = "Intel(R) FPGA Emulation Platform for OpenCL(TM)";
+#else
+  char *pname = "Intel(R) FPGA SDK for OpenCL(TM)";
+#endif
+  char name[MAX_PLATFORM_NAME];
+  int plen = strlen(pname);
+  int len;
+  for(int i = 0; i < n; i++) {
+    CL_CHECK(clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, MAX_PLATFORM_NAME, name, &len));
+    if(!strncmp(pname, name, plen)) {
+      fprintf(stderr, "Platform: %s\n", name);
+      _ACC_cl_platform_id = platforms[i];
+      is_working = true;
+      return;
+    }
+  }
+  _ACC_fatal("Unable to find Intel(R) Platform");
+#else
+  _ACC_cl_platform_id = platforms[0];
   is_working = true;
+#endif
 }
 void _ACC_platform_finalize()
 {
   if(is_working == false){
-    _ACC_fatal("_ACC_platform_finalize was called before _ACC_platform_init");    
+    _ACC_fatal("_ACC_platform_finalize was called before _ACC_platform_init");
   }
   CL_CHECK(clReleaseContext(_ACC_cl_current_context));
   is_working = false;

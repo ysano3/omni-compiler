@@ -27,6 +27,8 @@ acc_context *contexts;
 static void _ACC_init_device_if_not_inited(int num/*0-based*/);
 
 int _ACC_num_gangs_limit = -1; //negative num means not-set, and 0 means no limit
+bool _ACC_get_timestamp = false;
+int _ACC_profiling_loop = 1;
 
 void _ACC_init(int argc, char** argv)
 {
@@ -36,8 +38,25 @@ void _ACC_init(int argc, char** argv)
   }
   _ACC_runtime_working = true;
 
-  _ACC_platform_init();
-  
+  if(getenv("ACC_TIMESTAMP") != NULL) {
+    _ACC_get_timestamp = true;
+  }
+
+  char *profiling_loop = getenv("ACC_PROFILING_LOOP");
+  if (_ACC_get_timestamp && profiling_loop != NULL) {
+    int loop;
+    char *check;
+
+    loop = strtol(profiling_loop, &check, 0);
+
+    if(check != NULL && *check == NULL && loop > 1) {
+      _ACC_profiling_loop = loop;
+      fprintf(stderr, "PROFILING LOOP IS ENABLED: %d\n", loop);
+    }
+  }
+
+    _ACC_platform_init();
+
   //get device type
   acc_device_t device_t = acc_device_default; //set default type
   char *acc_device_type_str = getenv("ACC_DEVICE_TYPE");
@@ -114,10 +133,17 @@ void _ACC_finalize(void)
   /* default: */
   /*   _ACC_fatal("unknown device type"); */
   /* } */
+
+  if(_ACC_get_timestamp) {
+    double stamp;
+    _ACC_get_fintime(&stamp);
+    tlog_finalize_fpga(stamp);
+  }
+
   _ACC_finalize_type(acc_get_device_type());
 
   _ACC_platform_finalize();
-  
+
   _ACC_runtime_working = false;
   _ACC_DEBUG("end\n");
 }
@@ -266,7 +292,7 @@ void _ACC_init_current_device_if_not_inited()
 _ACC_queue_map_t* _ACC_get_queue_map()
 {
   _ACC_DEBUG("get_current_queue_map\n")
-  
+
   _ACC_init_current_device_if_not_inited();
   return contexts[_device_num].queue_map;
 }

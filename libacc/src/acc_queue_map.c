@@ -23,7 +23,7 @@ _ACC_queue_map_t* _ACC_gpu_init_stream_map(int hashtable_size) //FIXME _ACC_queu
   _ACC_queue_map_t* queue_map = (_ACC_queue_map_t*)_ACC_alloc(sizeof(_ACC_queue_map_t));
   queue_map->queue_lists = (queue_list *)_ACC_alloc(sizeof(queue_list)*hashtable_size);
   queue_map->hashtable_size = hashtable_size;
-  
+
   for(int i=0;i<hashtable_size;i++){
     queue_map->queue_lists[i].async_num = ACC_ASYNC_NULL;
     queue_map->queue_lists[i].next = NULL;
@@ -84,7 +84,7 @@ _ACC_queue_t* _ACC_queue_map_get_queue(int async_num)
   // this statement will be removed
   if(async_num == ACC_ASYNC_NOVAL) return _ACC_queue_map_get_queue(ACC_ASYNC_SYNC);
 #endif
-  
+
   _ACC_queue_map_t *queue_map = _ACC_get_queue_map();
   int hash = calc_hash(async_num, queue_map->hashtable_size);
 
@@ -99,6 +99,28 @@ _ACC_queue_t* _ACC_queue_map_get_queue(int async_num)
   return new_queue;
 }
 
+_ACC_queue_t *_ACC_queue_map_get_queue_multi(int async_num, int kernel_num)
+{
+#ifdef ASYNC_NOVAL_EQUALS_ASYNC_SYNC
+  // this statement will be removed
+  if(async_num == ACC_ASYNC_NOVAL) return _ACC_queue_map_get_queue(ACC_ASYNC_SYNC);
+#endif
+
+  _ACC_queue_map_t *queue_map = _ACC_get_queue_map();
+  int hash = calc_hash(async_num + kernel_num, queue_map->hashtable_size);
+
+  for(queue_list *entry = &(queue_map->queue_lists[hash]); entry != NULL; entry = entry->next){
+    if(entry->async_num == async_num){
+      return entry->queue;
+    }
+  }
+
+  _ACC_queue_t *new_queue = _ACC_queue_create(async_num);
+  add_queue(queue_map, async_num, new_queue);
+  return new_queue;
+}
+
+
 void _ACC_queue_map_set_queue(int async_num, _ACC_queue_t* queue)
 {
 #ifdef ASYNC_NOVAL_EQUALS_ASYNC_SYNC
@@ -108,7 +130,7 @@ void _ACC_queue_map_set_queue(int async_num, _ACC_queue_t* queue)
     return;
   }
 #endif
-  
+
   _ACC_queue_map_t *queue_map = _ACC_get_queue_map();
   int hash = calc_hash(async_num, queue_map->hashtable_size);
 
@@ -137,7 +159,7 @@ void _ACC_gpu_wait_all()
       // this statement will be removed
       if(entry->async_num == ACC_ASYNC_NOVAL) continue;
 #endif
-      
+
       _ACC_queue_wait(entry->queue);
     }
   }
@@ -157,7 +179,7 @@ int _ACC_gpu_test_all()
       // this statement will be removed
       if(entry->async_num == ACC_ASYNC_NOVAL) continue;
 #endif
-      
+
       int ret = _ACC_queue_test(entry->queue);
       if(ret == 0) return 0;
     }

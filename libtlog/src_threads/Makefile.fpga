@@ -1,0 +1,38 @@
+.PHONY: all clean install
+
+CC      = /opt/share/openmpi/3.1.0/MLNX_OFED_LINUX-3.4-2.0.0.0_gcc_4.8.5/bin/mpicc
+CFLAGS  = -O2 -std=gnu99 -Wall -Wpointer-arith -fopenmp -I../../include/
+RANLIB  = ranlib
+AR      = ar
+ARFLAGS = cr
+MKDIR_P = install -m 755 -d
+INSTALL = install
+HEADERS = tlog.h
+OBJECTS = tlog-ompc.o tlog.o tlog-time.o
+LIBTLOG = libtlog.a
+LIBDIR  = /home/ysano/xacc/omni/lib
+INCDIR  = /home/ysano/xacc/omni/include
+
+CFLAGS += -I/home/ysano/xacc/omni-compiler/xcodeml-tools/include
+
+ifeq ($(use_fpga), yes)
+CFLAGS += -D__USE_FPGA__
+endif
+
+all: $(LIBTLOG)
+$(OBJECTS): $(HEADERS)
+$(LIBTLOG): $(OBJECTS)
+	rm -f $@
+	$(AR) $(ARFLAGS) $@ $^
+	$(RANLIB) $@
+
+.c.o:
+	$(CC) $(CFLAGS) $< -c
+
+clean:
+	rm -f $(LIBTLOG) *.o
+
+install: $(LIBTLOG) $(HEADERS)
+	$(MKDIR_P) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(INCDIR)
+	$(INSTALL) $(LIBTLOG) $(DESTDIR)$(LIBDIR)
+	$(INSTALL) $(HEADERS) $(DESTDIR)$(INCDIR)

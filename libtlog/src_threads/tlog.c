@@ -4,7 +4,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "exc_platform.h"
 #include "tlog.h"
 #include "omp.h"
 
@@ -22,20 +21,33 @@ static double start_time;
 
 char *prog_name;
 
+#ifndef __USE_FPGA__
 void tlog_sig_handler(int x)
 {
-    extern int ompc_is_master_proc();
-    if (ompc_is_master_proc()) {
-	exit(1);	/* exit explicitly */
-    } else {
-	int n = 0;
-	for (;;) {
-	    n++;
-	}
-    }
+    // extern int ompc_is_master_proc();
+    // if (ompc_is_master_proc()) {
+	// exit(1);	/* exit explicitly */
+    // } else {
+	// int n = 0;
+	// for (;;) {
+	//     n++;
+	// }
+    // }
+}
+#endif
+
+void tlog_set_start(double stamp) {
+    start_time = stamp;
 }
 
-
+#ifdef __USE_FPGA__
+void tlog_init(char *name)
+{
+    fprintf(stderr,"log on ...\n");
+    prog_name = name;
+    tlog_log3(0, TLOG_START, start_time);
+}
+#else
 void tlog_init(char *name)
 {
     fprintf(stderr,"log on ...\n");
@@ -44,6 +56,7 @@ void tlog_init(char *name)
     tlog_log(0,TLOG_START);
     signal(SIGINT, tlog_sig_handler);
 }
+#endif
 
 
 void tlog_slave_init()
@@ -57,12 +70,11 @@ void tlog_slave_init()
 #endif /* OMNI_OS_LINUX && USE_PTHREAD */
 }
 
-
 void tlog_finalize()
 {
     TLOG_HANDLE *hp;
     int i;
-    
+
     /* fprintf(stderr,"finalize log by %d ...\n", omp_get_thread_num()); */
     fprintf(stderr,"finalize log ...\n");
     for(i = 0; i < MAX_THREADS; i++){
@@ -71,6 +83,50 @@ void tlog_finalize()
 	tlog_log(i,TLOG_END);
     }
     tlog_dump();
+}
+
+void tlog_finalize_fpga(double stamp)
+{
+    TLOG_HANDLE *hp;
+    int i;
+
+    /* fprintf(stderr,"finalize log by %d ...\n", omp_get_thread_num()); */
+    fprintf(stderr,"finalize log ...\n");
+    for(i = 0; i < MAX_THREADS; i++){
+	hp = &tlog_handle_table[i];
+	if(hp->block_top == NULL) continue; /* not used */
+	tlog_log3(i,TLOG_END,stamp);
+    }
+    tlog_dump();
+}
+
+static TLOG_DATA *tlog_get_data_fpga(int id, double stamp)
+{
+    TLOG_DATA *dp;
+    TLOG_HANDLE *hp;
+    TLOG_BLOCK *bp;
+
+    fprintf(stderr, "tlog_get_data_fpga(): id = %d, stamp = %lf\n", id, stamp);
+
+    hp = &tlog_handle_table[id];
+    if((dp = hp->free_p) == NULL || dp >= hp->end_p){
+	bp = (TLOG_BLOCK *)malloc(sizeof(TLOG_BLOCK));
+	bzero(bp,sizeof(*bp));
+	bp->next = NULL;
+	if(hp->block_top == NULL){
+	    hp->block_top = hp->block_tail = bp;
+    } else {
+	    hp->block_tail->next = bp;
+	    hp->block_tail = bp;
+	}
+	hp->free_p = (TLOG_DATA *)bp->data;
+	hp->end_p = (TLOG_DATA *)((char *)bp->data + TLOG_BLOCK_SIZE);
+	dp = hp->free_p;
+    }
+    hp->free_p = dp+1;
+    dp->proc_id = id;
+    dp->time_stamp = stamp;
+    return dp;
 }
 
 static TLOG_DATA *tlog_get_data(int id)
@@ -124,6 +180,17 @@ void tlog_log2(int id,TLOG_TYPE type,int arg1,int arg2)
     dp->arg2 = (_omInt32_t)arg2;
 }
 
+void tlog_log3(int id, enum tlog_type type, double stamp)
+{
+    TLOG_DATA *dp;
+
+    // fprintf(stderr, "tlog_log3(): type = %d, stamp = %lf\n", type, stamp);
+    fprintf(stderr, "tlog_log3(): type = %d\n", type);
+
+    dp = tlog_get_data_fpga(id, stamp - start_time);
+    dp->log_type = type;
+}
+
 static void tlog_dump()
 {
     FILE *fp;
@@ -147,7 +214,7 @@ static void tlog_dump()
 	strcpy(fname,prog_name);
 	strcat(fname,".log");
     }
-    
+
     if((fp = fopen(fname,"w")) == NULL){
 	fprintf(stderr,"cannot open '%s'\n",fname);
 	return;
@@ -158,7 +225,7 @@ static void tlog_dump()
 	hp = &tlog_handle_table[i];
 	for(bp = hp->block_top; bp != NULL; bp = bp->next){
 	    if(!bigendian) tlog_block_swap_bytes((TLOG_DATA *)bp->data);
-	    if(fwrite((void *)bp->data,1,TLOG_BLOCK_SIZE,fp) 
+	    if(fwrite((void *)bp->data,1,TLOG_BLOCK_SIZE,fp)
 	       != TLOG_BLOCK_SIZE){
 		fprintf(stderr,"write error to '%s'\n",TLOG_FILE_NAME);
 		return;
@@ -178,7 +245,7 @@ static void tlog_dump()
 	    done = 0;
 	    bps[i] = bp->next;
 	    if(!bigendian) tlog_block_swap_bytes((TLOG_DATA *)bp->data);
-	    if(fwrite((void *)bp->data,1,TLOG_BLOCK_SIZE,fp) 
+	    if(fwrite((void *)bp->data,1,TLOG_BLOCK_SIZE,fp)
 	       != TLOG_BLOCK_SIZE){
 	      fprintf(stderr,"write error to '%s'\n",TLOG_FILE_NAME);
 	      return;

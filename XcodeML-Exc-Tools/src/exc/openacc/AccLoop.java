@@ -228,23 +228,23 @@ public class AccLoop extends AccDirective{
       input.add(p);
     }
   }
-  
+
   static CforBlock findOutermostTightlyNestedForBlock(Block block){
     if(block.Opcode() == Xcode.FOR_STATEMENT){
       return (CforBlock)block;
     }
-    
+
     if(block.Opcode() == Xcode.COMPOUND_STATEMENT){
       BlockList body = block.getBody();
       XobjList idList = body.getIdentList();
       if(body.isSingle()){ //is compound-block non-meaningful
         return findOutermostTightlyNestedForBlock(body.getHead());
       }
-    }   
-    
+    }
+
     return null;
   }
-  
+
   private XobjList checkCollapsedLoop(Block block, int num_collapse) throws ACCexception{
     CforBlock forBlock = findOutermostTightlyNestedForBlock(block);
 
@@ -295,6 +295,8 @@ public class AccLoop extends AccDirective{
     case SEQ:
     case INDEPENDENT:
     case PRIVATE:
+    case UNROLL: // additional
+    case MULKER_LENGTH: // additional
       return true;
     default:
       return clauseKind.isReduction();

@@ -193,7 +193,7 @@ public class AccData extends AccDirective {
   @Override
   void rewrite() throws ACCexception{
     if(ACC.debug_flag) System.out.println("AccData rewrite _info="+_info);
-    
+
     //build
     BlockList beginBody = Bcons.emptyBody();
     for(Block b : initBlockList) beginBody.add(b);
